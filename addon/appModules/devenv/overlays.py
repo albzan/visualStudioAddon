@@ -17,7 +17,6 @@ import braille
 import api
 from logHandler import log
 import UIAHandler
-import UIAUtils
 from NVDAObjects import NVDAObject
 from NVDAObjects.UIA import Toast_win8 as Toast
 from NVDAObjects.UIA import UIA, UIATextInfo, WpfTextView
