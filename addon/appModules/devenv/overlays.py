@@ -6,18 +6,21 @@
 
 
 import os
+import re
 
 import comtypes
 import scriptHandler
 import eventHandler
 import speech
 import ui
+import braille
 import api
 from logHandler import log
-
+import UIAHandler
+import UIAUtils
 from NVDAObjects import NVDAObject
 from NVDAObjects.UIA import Toast_win8 as Toast
-from NVDAObjects.UIA import UIA, WpfTextView
+from NVDAObjects.UIA import UIA, UIATextInfo, WpfTextView
 import controlTypes
 from NVDAObjects.behaviors import EditableTextWithSuggestions
 
@@ -51,12 +54,34 @@ def playWaveFile(waveFile: str) -> bool:
 	return True
 
 
+class BrailleAwareTextEditorTextInfo(UIATextInfo) :
+	def _getTextWithFields_text(self,textRange,formatConfig,UIAFormatUnits=None):
+		unit=UIAHandler.TextUnit_Character
+		text = self._getTextFromUIARange(textRange)
+		if len(text) >= 2 :
+			startRange = textRange.clone()
+			startRange.ExpandToEnclosingUnit(UIAHandler.TextUnit_Line)
+			line = self._getTextFromUIARange(startRange)
+			start = re.findall("^[0-9]+ ",line)[0]
+			reptxt = re.sub("^[0-9]+ ","",text) #  text.lstrip('0123456789 ')
+			if start in text :
+				text = reptxt
+			
+		if text:
+			yield text
+
+
 class TextEditor(WpfTextView):
-	pass
+	def _get_TextInfo(self):
+		if braille.handler.display.name != "noBraille" :
+			return BrailleAwareTextEditorTextInfo
+		return UIATextInfo
+	
+	def _get_description(self) :
+		return None
 
 
 class IgnoredFocusEntered(NVDAObject):
-
 	def event_focusEntered(self):
 		# We should ignore this...
 		pass
@@ -102,7 +127,6 @@ class CodeEditor(DocumentContent, EditableTextWithSuggestions, TextEditor):
 	"""
 	The code editor overlay class.
 	"""
-
 	typedCharacter = False
 
 	def event_typedCharacter(self, ch):
